@@ -61,6 +61,8 @@ class KubernetesClientImpl private[client] (
 
   private var isClosed = false
 
+  val defaultBufSize = 10000
+
   private[skuber] def invokeWatch(request: HttpRequest)(implicit lc: LoggingContext): Future[HttpResponse] = invoke(request, watchSettings)
   private[skuber] def invokeLog(request: HttpRequest)(implicit lc: LoggingContext): Future[HttpResponse] = invoke(request, podLogSettings)
   private[skuber] def invoke(request: HttpRequest, settings: ConnectionPoolSettings = ConnectionPoolSettings(actorSystem))(implicit lc: LoggingContext): Future[HttpResponse] = {
@@ -453,29 +455,28 @@ class KubernetesClientImpl private[client] (
     }
   }
 
-
   // The Watch methods place a Watch on the specified resource on the Kubernetes cluster.
   // The methods return Akka streams sources that will reactively emit a stream of updated
   // values of the watched resources.
 
-  override def watch[O <: ObjectResource](obj: O)(
+  override def watch[O <: ObjectResource](obj: O, sinceResourceVersion: Option[String] = None, bufSize: Int = defaultBufSize)(
     implicit fmt: Format[O], rd: ResourceDefinition[O], lc: LoggingContext): Future[Source[WatchEvent[O], _]] =
   {
-    watch(obj.name)
+    watch(obj.name, sinceResourceVersion, bufSize)
   }
 
   // The Watch methods place a Watch on the specified resource on the Kubernetes cluster.
   // The methods return Akka streams sources that will reactively emit a stream of updated
   // values of the watched resources.
 
-  override def watch[O <: ObjectResource](name: String, sinceResourceVersion: Option[String] = None, bufSize: Int = 10000)(
+  override def watch[O <: ObjectResource](name: String, sinceResourceVersion: Option[String] = None, bufSize: Int = defaultBufSize)(
     implicit fmt: Format[O], rd: ResourceDefinition[O], lc: LoggingContext): Future[Source[WatchEvent[O], _]] =
   {
     Watch.events(this, name, sinceResourceVersion, bufSize)
   }
 
   // watch events on all objects of specified kind in current namespace
-  override def watchAll[O <: ObjectResource](sinceResourceVersion: Option[String] = None, bufSize: Int = 10000)(
+  override def watchAll[O <: ObjectResource](sinceResourceVersion: Option[String] = None, bufSize: Int = defaultBufSize)(
     implicit fmt: Format[O], rd: ResourceDefinition[O], lc: LoggingContext): Future[Source[WatchEvent[O], _]] =
   {
     Watch.eventsOnKind[O](this, sinceResourceVersion, bufSize)
